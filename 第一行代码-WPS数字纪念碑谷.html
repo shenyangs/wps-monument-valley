@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>第一行代码：静海数字纪念碑谷</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#c8a84e;
+  font-family:Georgia,'Times New Roman',serif;-webkit-font-smoothing:antialiased}
+canvas{display:block}
+
+/* ── LOADING ── */
+#loader{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;transition:opacity 2s cubic-bezier(.4,0,.2,1)}
+#loader.done{opacity:0;pointer-events:none}
+.ld-line{width:1px;height:80px;background:linear-gradient(180deg,transparent,#c8a84e,transparent);
+  position:relative;overflow:hidden}
+.ld-line::after{content:'';position:absolute;left:0;width:1px;background:#fff;height:30px;
+  animation:ldScan 2s ease-in-out infinite}
+@keyframes ldScan{0%{top:-30px;opacity:0}50%{opacity:1}100%{top:80px;opacity:0}}
+.ld-pct{margin-top:32px;font-size:11px;color:#665520;letter-spacing:3px;font-variant-numeric:tabular-nums}
+.ld-sub{margin-top:8px;font-size:9px;color:#332a15;letter-spacing:2px;max-width:320px;text-align:center}
+
+/* ── TITLE BAR (minimal, fades after entry) ── */
+#titleBar{position:fixed;top:0;left:0;right:0;height:56px;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;padding:0 32px;
+  background:linear-gradient(180deg,rgba(0,0,0,.7) 0%,transparent 100%);
+  transition:opacity 1s ease;pointer-events:none}
+#titleBar .left{font-size:10px;letter-spacing:5px;color:#665520;text-transform:uppercase}
+#titleBar .right{font-size:13px;color:#c8a84e;letter-spacing:4px;font-weight:bold;
+  text-shadow:0 0 20px rgba(200,168,78,.3)}
+
+/* ── TIMELINE (bottom, minimal) ── */
+#timeline{position:fixed;bottom:0;left:0;right:0;height:48px;z-index:100;
+  background:linear-gradient(0deg,rgba(0,0,0,.8) 0%,transparent 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:10px;
+  opacity:0;transition:opacity 1s ease 3s}
+#timeline.show{opacity:1}
+#tl-track{width:60%;max-width:700px;height:1px;background:#1a1510;position:relative;cursor:pointer}
+#tl-fill{position:absolute;left:0;top:0;height:100%;background:#c8a84e;border-radius:1px;
+  transition:width .2s ease;box-shadow:0 0 6px rgba(200,168,78,.4)}
+#tl-dot{position:absolute;top:50%;width:8px;height:8px;background:#c8a84e;border-radius:50%;
+  transform:translate(-50%,-50%);cursor:grab;box-shadow:0 0 12px rgba(200,168,78,.5);
+  transition:left .15s ease}
+#tl-years{width:60%;max-width:700px;display:flex;justify-content:space-between;margin-bottom:4px}
+#tl-years span{font-size:8px;color:#332a15;letter-spacing:1px;transition:color .3s}
+#tl-years span.active{color:#c8a84e}
+#tl-label{font-size:8px;color:#332a15;letter-spacing:2px;margin-top:2px}
+
+/* ── DETAIL PANEL (slides from right) ── */
+#detail{position:fixed;right:0;top:0;width:380px;max-width:92vw;height:100vh;
+  background:rgba(3,2,1,.95);border-left:1px solid #1a1510;z-index:200;
+  transform:translateX(100%);transition:transform .6s cubic-bezier(.4,0,.2,1);
+  overflow-y:auto;padding:56px 32px 32px;-webkit-overflow-scrolling:touch}
+#detail.open{transform:translateX(0)}
+#detail::-webkit-scrollbar{width:2px}
+#detail::-webkit-scrollbar-thumb{background:#2a2310}
+.dp-close{position:fixed;top:16px;right:24px;color:#8a7430;cursor:pointer;font-size:12px;
+  z-index:201;transition:color .3s;line-height:1;letter-spacing:2px;padding:8px 14px;
+  border:1px solid #2a2310;background:rgba(3,2,1,.9);border-radius:2px}
+.dp-close:hover{color:#c8a84e;border-color:#c8a84e}
+.dp-idx{font-size:9px;color:#332a15;letter-spacing:4px;margin-bottom:12px}
+.dp-name{font-size:26px;color:#c8a84e;letter-spacing:3px;margin-bottom:2px}
+.dp-en{font-size:10px;color:#665520;letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}
+.dp-meta{display:flex;gap:20px;margin-bottom:24px;font-size:10px;color:#8a7430;
+  border-bottom:1px solid #1a1510;padding-bottom:16px}
+.dp-meta span{opacity:.7}
+.dp-section{margin-bottom:24px}
+.dp-section h4{font-size:9px;color:#443a1a;letter-spacing:3px;text-transform:uppercase;
+  border-bottom:1px solid #1a1510;padding-bottom:6px;margin-bottom:10px}
+.dp-section p{font-size:13px;line-height:2;color:#8a7430}
+.dp-section .person{color:#c8a84e;font-style:italic}
+.dp-verify{font-size:9px;margin-top:4px;font-style:italic}
+.dp-verify.verified{color:#4a6a2a}
+.dp-verify.artistic{color:#6a4a2a}
+.dp-source{font-size:9px;color:#332a15;margin-top:2px}
+.dp-art{font-size:10px;color:#4a3a1a;font-style:italic;margin-top:16px;
+  border-top:1px dashed #1a1510;padding-top:12px;line-height:1.8}
+
+/* ── INPUT (bottom center) ── */
+
+
+/* ── TOAST ── */
+#toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-12px);
+  z-index:400;background:rgba(3,2,1,.9);border:1px solid #1a1510;color:#8a7430;
+  padding:8px 20px;font-size:11px;letter-spacing:2px;opacity:0;transition:all .4s ease;
+  pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── COMMIT LOG (left, subtle) ── */
+#commitlog{position:fixed;left:24px;bottom:56px;z-index:80;pointer-events:none;
+  opacity:0;transition:opacity 1s ease 4s}
+#commitlog.show{opacity:.5}
+.cl-title{font-size:8px;color:#2a2310;letter-spacing:3px;margin-bottom:6px}
+.cl-e{font-size:9px;color:#332a15;font-family:'Courier New',monospace;line-height:1.8;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl-e .h{color:#554a25}
+
+/* ── CAMERA FLY CURSOR ── */
+body.flying{cursor:grab}
+body.flying:active{cursor:grabbing}
+
+/* ── HINT ── */
+#hint{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:90;
+  font-size:11px;color:#665520;letter-spacing:3px;pointer-events:none;
+  opacity:0;transition:opacity .6s ease;text-align:center}
+#hint.show{opacity:1}
+
+/* ── CONTROLS (minimal, bottom-right) ── */
+/* ── TOUR CARD (bottom, cinematic subtitle) ──*/
+#tourCard{position:fixed;bottom:56px;left:50%;transform:translateX(-50%);z-index:95;
+  text-align:center;pointer-events:none;
+  opacity:0;transition:opacity .8s cubic-bezier(.4,0,.2,1);will-change:opacity;
+  background:rgba(0,0,0,.55);padding:16px 28px 12px;border-radius:2px}
+#tourCard.show{opacity:1}
+#tcName{display:block;font-size:13px;color:#c8a84e;letter-spacing:4px;font-weight:bold;
+  text-shadow:0 0 20px rgba(200,168,78,.25);margin-bottom:10px}
+#tcSep{display:block;width:24px;height:1px;background:rgba(200,168,78,.3);margin:0 auto 10px}
+#tcStory{display:block;font-size:11px;color:#8a7430;letter-spacing:1.5px;line-height:1.7;
+  max-width:520px;font-weight:normal}
+
+#ctrls{position:fixed;bottom:56px;right:16px;z-index:100;display:flex;flex-direction:column;
+  gap:4px;opacity:0;transition:opacity 1s ease 3s}
+#ctrls.show{opacity:1}
+.cb{width:36px;height:36px;background:transparent;border:1px solid rgba(50,42,21,.5);
+  color:#554a25;font-size:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-family:inherit;letter-spacing:1px;transition:all .3s;border-radius:2px}
+.cb:hover{border-color:#c8a84e;color:#c8a84e}
+.cb.active{border-color:#c8a84e;color:#c8a84e;background:rgba(200,168,78,.06)}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  #titleBar{height:44px;padding:0 16px}
+  #titleBar .left{font-size:7px;letter-spacing:2px}
+  #titleBar .right{font-size:11px;letter-spacing:2px}
+  #detail{width:100vw;padding:48px 20px 20px}
+  .dp-close{top:10px;right:14px;font-size:10px;padding:6px 10px}
+  #timeline{height:44px;padding-bottom:8px}
+  #tl-track,#tl-years{width:90%}
+  #tl-years span{font-size:7px}
+  #tl-label{font-size:7px}
+  #tl-dot{width:10px;height:10px}
+  #tourCard{bottom:48px;padding:12px 20px 10px;max-width:92vw}
+  #tcName{font-size:12px;letter-spacing:3px;margin-bottom:8px}
+  #tcSep{margin-bottom:8px}
+  #tcStory{font-size:10px;line-height:1.6}
+  #ctrls{bottom:48px;right:10px}
+  .cb{width:40px;height:40px;font-size:14px;border-radius:50%}
+  #commitlog{display:none}
+  #hint{font-size:9px;letter-spacing:2px}
+  #toast{font-size:10px;padding:6px 16px;top:50px}
+  .dp-name{font-size:22px}
+  .dp-en{font-size:9px}
+  .dp-section p{font-size:12px;line-height:1.8}
+  .ld-line{height:60px}
+  .ld-pct{margin-top:24px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="ld-line"></div>
+  <div class="ld-pct" id="ldPct">0%</div>
+  <div class="ld-sub" id="ldSub">INITIALIZING TRANQUILLITY BASE T-01</div>
+</div>
+
+<canvas id="c"></canvas>
+
+<div id="titleBar">
+  <div class="left">THE FIRST LINE — A LUNAR ARCHIVE OF WPS</div>
+  <div class="right" id="yearDisp">2026</div>
+</div>
+
+<div id="hint"></div>
+<div id="tourCard"><span id="tcName"></span><span id="tcSep"></span><span id="tcStory"></span></div>
+
+<div id="timeline">
+  <div id="tl-years"></div>
+  <div id="tl-track">
+    <div id="tl-fill"></div>
+    <div id="tl-dot"></div>
+  </div>
+  <div id="tl-label">TRANQUILLITY BASE T-01</div>
+</div>
+
+<div id="ctrls">
+  <button class="cb" id="btnTour" title="导览">&#9654;</button>
+</div>
+
+<div id="detail">
+  <div class="dp-close" id="dpClose">&times; 返回全局</div>
+  <div id="dpBody"></div>
+</div>
+
+<div id="commitlog">
+  <div class="cl-title">COMMIT LOG</div>
+  <div id="clList"></div>
+</div>
+
+
+
+<div id="toast"></div>
+
+<script src="three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  INLINE ORBITCONTROLS (r128)
+// ═══════════════════════════════════════════════════════
+THREE.OrbitControls=function(e,t){this.object=e;this.domElement=t||document;this.enabled=true;
+this.target=new THREE.Vector3();this.minDistance=5;this.maxDistance=250;this.minPolarAngle=.1;
+this.maxPolarAngle=Math.PI*.55;this.enableDamping=true;this.dampingFactor=.04;
+this.enableZoom=true;this.enableRotate=true;this.enablePan=false;this.autoRotate=false;
+this.autoRotateSpeed=1;this.zoomSpeed=1;this.rotateSpeed=.6;
+var i=this,EPS=1e-6,spherical=new THREE.Spherical,sphericalDelta=new THREE.Spherical,
+scale=1,panOffset=new THREE.Vector3,offset=new THREE.Vector3,
+rS=new THREE.Vector2,rE=new THREE.Vector2,rD=new THREE.Vector2,
+quat=new THREE.Quaternion().setFromUnitVectors(e.up,new THREE.Vector3(0,1,0)),
+qi=quat.clone().inverse(),STATE={NONE:-1,ROTATE:0,DOLLY:1},state=STATE.NONE;
+function rL(a){sphericalDelta.theta-=a}function rU(a){sphericalDelta.phi-=a}
+function dIn(a){var d=i.object instanceof THREE.PerspectiveCamera;if(d)scale/=a;else{i.object.zoom=Math.max(.1,Math.min(10,i.object.zoom*a));i.object.updateProjectionMatrix()}}
+function hMDR(e){rS.set(e.clientX,e.clientY)}function hMMR(e){rE.set(e.clientX,e.clientY);
+rD.subVectors(rE,rS);var el=i.domElement;rL(2*Math.PI*rD.x/el.clientWidth*i.rotateSpeed);
+rU(2*Math.PI*rD.y/el.clientHeight*i.rotateSpeed);rS.copy(rE)}
+function hW(e){if(!i.enabled)return;e.preventDefault();if(e.deltaY<0)dIn(Math.pow(.95,i.zoomSpeed));else dIn(1/Math.pow(.95,i.zoomSpeed))}
+function onPD(e){if(!i.enabled)return;if(e.button===0){state=STATE.ROTATE;hMDR(e)}}
+function onPM(e){if(!i.enabled)return;if(state===STATE.ROTATE)hMMR(e)}
+function onPU(){state=STATE.NONE}
+var el=i.domElement;
+el.addEventListener('pointerdown',onPD,false);el.addEventListener('pointermove',onPM,false);
+el.addEventListener('pointerup',onPU,false);
+el.addEventListener('contextmenu',function(e){e.preventDefault()},false);
+el.addEventListener('wheel',hW,{passive:false});
+var touches=[];el.addEventListener('touchstart',function(e){if(!i.enabled)return;touches=e.touches;
+if(touches.length===1){state=STATE.ROTATE;rS.set(touches[0].pageX,touches[0].pageY)}
+else if(touches.length===2){dIn(1.05)}},{passive:true});
+el.addEventListener('touchmove',function(e){if(!i.enabled)return;e.preventDefault();touches=e.touches;
+if(touches.length===1&&state===STATE.ROTATE){rE.set(touches[0].pageX,touches[0].pageY);
+rD.subVectors(rE,rS);var el2=i.domElement;
+rL(2*Math.PI*rD.x/el2.clientWidth*i.rotateSpeed);
+rU(2*Math.PI*rD.y/el2.clientHeight*i.rotateSpeed);rS.copy(rE)}
+else if(touches.length===2){var d=Math.hypot(touches[0].pageX-touches[1].pageX,touches[0].pageY-touches[1].pageY);
+var pd=Math.hypot(rS.x-rE.x,rS.y-rE.y);if(d>pd)dIn(Math.pow(.95,i.zoomSpeed));
+else dIn(1/Math.pow(.95,i.zoomSpeed))}},{passive:false});
+el.addEventListener('touchend',function(){state=STATE.NONE},false);
+this.update=function(){offset.copy(i.object.position).sub(i.target);offset.applyQuaternion(quat);
+spherical.setFromVector3(offset);spherical.theta+=sphericalDelta.theta;
+spherical.phi+=sphericalDelta.phi;spherical.phi=Math.max(i.minPolarAngle,Math.min(i.maxPolarAngle,spherical.phi));
+spherical.makeSafe();spherical.radius*=scale;
+spherical.radius=Math.max(i.minDistance,Math.min(i.maxDistance,spherical.radius));
+i.target.add(panOffset);offset.setFromSpherical(spherical);offset.applyQuaternion(qi);
+i.object.position.copy(i.target).add(offset);i.object.lookAt(i.target);
+if(i.enableDamping){sphericalDelta.theta*=1-i.dampingFactor;sphericalDelta.phi*=1-i.dampingFactor}
+else{sphericalDelta.set(0,0,0)}scale=1};
+this.dispose=function(){el.removeEventListener('pointerdown',onPD);el.removeEventListener('pointermove',onPM);
+el.removeEventListener('pointerup',onPU);el.removeEventListener('wheel',hW)}};
+</script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  THE FIRST LINE: A LUNAR ARCHIVE OF WPS
+//  静海数字纪念碑谷 v2 — Redesign
+// ═══════════════════════════════════════════════════════
+
+
+// ── HISTORY DATA ──
+var DATA=[
+{id:1,name:"501房间",en:"ROOM 501",range:"1988—1989",verb:"流出",verbEn:"EFFLUENCE",
+people:["张旋龙","求伯君"],title:"第一行代码的诞生地",
+desc:"1988年，求伯君在深圳蔡屋围酒店的一间客房中，以汇编语言独立开发WPS 1.0。十二万行代码，一个人，一间房。这是中国办公软件的起点。",
+events:[
+{y:1988,t:"求伯君开始开发WPS",d:"在深圳以汇编语言编写文字处理系统",s:"WPS官方社区",v:"verified"},
+{y:1989,t:"WPS 1.0发布",d:"正式进入中文办公市场",s:"金山办公官网",v:"verified"}],
+art:"房间被设计为悬浮于黑色虚空中的不完整几何体，象征一段在隔绝中开始的创造。终端持续流出金色代码字符。此为艺术转译。",
+src:["WPS官方社区 — WPS时光机","金山办公官网发展历程"],product:"WPS 1.0",vs:"verified"},
+
+{id:2,name:"90%",en:"NINETY PERCENT",range:"1989—1993",verb:"点亮",verbEn:"ILLUMINATE",
+people:["求伯君"],title:"中文办公的黄金年代",
+desc:"WPS在DOS时代占据中文文字处理市场的主导地位。五笔字型、中文排版、打印输出——WPS成为早期中文办公的代名词。",
+events:[
+{y:1989,t:"WPS DOS版普及",d:"成为中文文字处理主流软件",s:"多方公开报道",v:"verified"},
+{y:1993,t:"市场主导地位",d:"WPS在DOS时代占有率极高",s:"澎湃新闻/36氪",v:"verified"}],
+art:"十根金色光柱代表中文办公核心能力，九根被点亮，第十根始终黑暗——总还有下一行要写。此为艺术转译。",
+src:["澎湃新闻 — 31年WPS","36氪 — 金山WPS"],product:"WPS for DOS",vs:"verified"},
+
+{id:3,name:"裂缝",en:"FRACTURE",range:"1993—2001",verb:"崩解",verbEn:"FRACTURE",
+people:["求伯君","雷军"],title:"技术路线剧变中的生存",
+desc:"Windows时代到来，盘古组件市场受挫。WPS 97实现所见即所得，但市场格局已变。团队在转型和压力中持续研发，从未停止。",
+events:[
+{y:1993,t:"盘古组件发布",d:"金山推出盘古组件，市场反响不及预期",s:"WPS官方社区",v:"verified"},
+{y:1997,t:"WPS 97发布",d:"实现所见即所得，向Windows转型",s:"WPS官方社区",v:"verified"},
+{y:2001,t:"持续生存",d:"团队在市场转型中持续研发",s:"多方报道",v:"verified"}],
+art:"碑体由代码字符堆叠后断裂。碎块内刻有error、incompatible。裂缝中一条细金光延续远方，象征团队未停止。此为艺术转译。",
+src:["WPS官方社区 — 考古星期一","澎湃新闻 — 31年WPS"],product:"盘古组件 / WPS 97",vs:"verified"},
+
+{id:4,name:"重写",en:"REWRITE",range:"2002—2005",verb:"删除并重建",verbEn:"DELETE & REBUILD",
+people:["雷军"],title:"推倒重来：三年重写全部代码",
+desc:"2002年，雷军决定推倒WPS全部代码重写。历时三年，WPS Office 2005发布，深度兼容Microsoft Office格式，个人版免费。安装包不到20MB。",
+events:[
+{y:2002,t:"决定重写",d:"雷军决定推倒WPS全部代码重新构建",s:"新浪科技专访雷军",v:"verified"},
+{y:2005,t:"WPS Office 2005发布",d:"完全重构，深度兼容Office格式，个人版免费",s:"中关村在线",v:"verified"}],
+art:"碑体一侧是陈旧密集的旧字符，另一侧是清晰轻量的新字符。三条路径象征文字、表格和演示。此为艺术转译。",
+src:["新浪科技 — 专访雷军","WPS官方社区 — WPS 2005"],product:"WPS Office 2005",vs:"verified"},
+
+{id:5,name:"亿万块屏幕",en:"BILLION SCREENS",range:"2011—2022",verb:"扩散",verbEn:"DIFFUSE",
+people:["雷军","移动办公与云协作团队"],title:"从桌面到云端：多屏流动时代",
+desc:"WPS移动版发布，覆盖Android、iOS。金山文档上线，开启云协作。2019年11月18日，金山办公科创板上市，代码688111。2022年，超过5000万行代码。",
+events:[
+{y:2011,t:"WPS移动版发布",d:"登陆Android平台",s:"中关村在线",v:"verified"},
+{y:2018,t:"金山文档上线",d:"云文档协作平台发布",s:"金山办公官网",v:"verified"},
+{y:2019,t:"688111上市",d:"11月18日科创板上市",s:"上交所",v:"verified"},
+{y:2022,t:"5000万行代码",d:"技术开放日公布",s:"新浪财经",v:"verified"}],
+art:"碑体由金色光点构成，每个光点代表一块屏幕。铜锣点击后合成锣声，涟漪沿路径扩散。此为艺术转译。",
+src:["新浪财经","金山办公官网","上交所"],product:"WPS Mobile / 金山文档 / 688111.SH",vs:"verified"},
+
+{id:6,name:"下一行",en:"NEXT LINE",range:"2023—2029",verb:"吸收并生长",verbEn:"ABSORB & GROW",
+people:["金山办公研发团队"],title:"从软件操作到任务交付",
+desc:"2023年WPS AI发布。2026年灵犀专业版发布——新一代办公智能体。2027至2029：尚未提交的未来。",
+events:[
+{y:2023,t:"WPS AI发布",d:"协同办公赛道首个类ChatGPT应用",s:"WPS官方社区",v:"verified"},
+{y:2026,t:"灵犀专业版发布",d:"新一代办公智能体",s:"DoNews",v:"verified"},
+{y:2027,t:"UNCOMMITTED FUTURE",d:"尚未提交的未来",s:"—",v:"artistic_interpretation"},
+{y:2029,t:"WAITING FOR THE NEXT LINE",d:"等待下一行",s:"—",v:"artistic_interpretation"}],
+quote:{t:"我们所有产品都是自主研发的，超过5000万行代码，都是我们的工程师一行行敲出来的。",p:"金山办公",s:"2022年技术开放日"},
+art:"流体碑由金色字符持续缓慢流动。用户提交文字后，字符飞向碑体。此为艺术转译。",
+src:["DoNews","WPS官方社区","搜狗百科"],product:"WPS AI / 灵犀专业版",vs:"verified"}
+];
+
+var COMMITS=[
+{h:"1988001",y:1988,m:"第一行代码开始书写"},
+{h:"1989001",y:1989,m:"WPS 1.0进入中文办公历史"},
+{h:"1997001",y:1997,m:"WPS 97实现所见即所学"},
+{h:"2002001",y:2002,m:"决定推倒全部代码重写"},
+{h:"2005001",y:2005,m:"WPS Office 2005新架构发布"},
+{h:"2011001",y:2011,m:"WPS移动版发布"},
+{h:"2018001",y:2018,m:"金山文档上线"},
+{h:"2019001",y:2019,m:"688111 listed — 金山办公上市"},
+{h:"2023001",y:2023,m:"WPS AI发布"},
+{h:"2026001",y:2026,m:"灵犀专业版发布"}
+];
+
+var ENGINEERS=[
+{c:"a3f0012",a:"求伯君",m:"core/writer",msg:"init: 第一行"},
+{c:"d9f6678",a:"engineer_0003",m:"typeset",msg:"fix: 中文排版"},
+{c:"e1a8890",a:"雷军",m:"pangu/office",msg:"add: 盘古组件"},
+{c:"a8c1134",a:"engineer_0004",m:"wps97",msg:"feat: 所见即所得"},
+{c:"d1f4790",a:"雷军",m:"core/rewrite",msg:"refactor: 推倒重写"},
+{c:"e8a1934",a:"engineer_0011",m:"mobile/android",msg:"feat: Android版"},
+{c:"c2e5312",a:"engineer_0014",m:"cloud/docs",msg:"feat: 金山文档"},
+{c:"d3f6434",a:"product_0002",m:"legal/ipo",msg:"docs: 上市申报"},
+{c:"b7d0812",a:"engineer_0018",m:"ai/wps_ai",msg:"feat: WPS AI"},
+{c:"e0a3178",a:"engineer_0020",m:"ai/lingxi",msg:"feat: 灵犀专业版"}
+];
+
+// ── MONUMENT CONFIG (positions on ∞ path) ──
+// ∞ curve: x = a*cos(t)/(1+sin²t), z = a*sin(t)*cos(t)/(1+sin²t)
+var MCFG=[
+{id:1,t:Math.PI*1.25,ys:1988,ye:1989},
+{id:2,t:Math.PI*1.6, ys:1989,ye:1993},
+{id:3,t:Math.PI*1.85,ys:1993,ye:2001},
+{id:4,t:Math.PI*0.5, ys:2002,ye:2005},
+{id:5,t:Math.PI*0.15,ys:2011,ye:2022},
+{id:6,t:Math.PI*1.75,ys:2023,ye:2029}
+];
+
+// ── GLOBALS ──
+var scene,cam,renderer,ctrl,ray,mouse,clk;
+var monuments=[];var pathCurve,pathPts=[];
+var tourOn=false;
+var curYear=2026,visited=new Set();
+var engIdx=0,engTimer=0;
+var toastTmr=null,hintTmr=null;
+var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// ── ∞ PATH POSITION ──
+function infPos(t){
+  var a=40,s=Math.sin(t),d=1+s*s;
+  return{x:a*Math.cos(t)/d,z:a*s*Math.cos(t)/d}
+}
+
+// ── TEXTURE HELPERS ──
+function txtTex(text,opt){
+  opt=opt||{};
+  var fs=opt.fs||20,col=opt.col||'#c8a84e',ff=opt.ff||'Georgia,serif',mw=opt.mw||512,lh=opt.lh||1.4,al=opt.al||'center',fw=opt.fw||'normal';
+  var dpr=2;
+  var cv=document.createElement('canvas'),cx=cv.getContext('2d');
+  // 先用逻辑尺寸计算布局
+  cx.font=fw+' '+fs+'px '+ff;
+  var lines=text.indexOf('\n')>=0?text.split('\n'):[text],maxW=0;
+  lines.forEach(function(l){var w=cx.measureText(l).width;if(w>maxW)maxW=w});
+  var logW=Math.min(Math.max(maxW+20,64),1024);
+  var textH=fs*lh*lines.length;
+  var pad=fs*(lines.length>1?0.6:0.9);
+  var logH=Math.max(textH+pad*2,fs*1.2);
+  // 用2x物理尺寸渲染
+  cv.width=logW*dpr;cv.height=logH*dpr;
+  cx=cv.getContext('2d');cx.font=fw+' '+fs*dpr+'px '+ff;
+  cx.fillStyle='rgba(0,0,0,0)';cx.fillRect(0,0,cv.width,cv.height);
+  cx.fillStyle=col;cx.textAlign=al;cx.textBaseline='middle';
+  lines.forEach(function(l,i){
+    var x=al==='center'?cv.width/2:al==='right'?cv.width-10*dpr:10*dpr;
+    var y=cv.height/2+(i-(lines.length-1)/2)*fs*dpr*lh;
+    cx.fillText(l,x,y)
+  });
+  var tx=new THREE.CanvasTexture(cv);tx.needsUpdate=true;
+  tx.minFilter=THREE.LinearMipmapLinearFilter;tx.magFilter=THREE.LinearFilter;
+  // 存储逻辑尺寸供sprite使用
+  tx._logW=logW;tx._logH=logH;return tx
+}
+
+function txtSprite(text,opt){
+  opt=opt||{};
+  var tex=txtTex(text,opt);
+  var mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:opt.op||1,depthWrite:false});
+  var sp=new THREE.Sprite(mat);
+  var s=(opt.s||1)*(isMobile?1.25:1),asp=tex._logW/tex._logH;
+  sp.scale.set(s*asp,s,1);return sp
+}
+
+// ── SCENE INIT ──
+function initScene(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x000000);
+  scene.fog=new THREE.FogExp2(0x000000,0.0025);
+
+  var fov=isMobile?60:50;
+  cam=new THREE.PerspectiveCamera(fov,innerWidth/innerHeight,0.1,2000);
+  cam.position.set(0,isMobile?20:28,isMobile?42:65);
+
+  var cv=document.getElementById('c');
+  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:!isMobile,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.outputEncoding=THREE.sRGBEncoding;
+
+  ctrl=new THREE.OrbitControls(cam,cv);
+  ctrl.enableDamping=true;ctrl.dampingFactor=.04;
+  ctrl.minDistance=isMobile?5:8;ctrl.maxDistance=isMobile?120:200;
+  ctrl.maxPolarAngle=Math.PI*.55;
+  ctrl.minPolarAngle=.1;
+  ctrl.enablePan=false;
+  ctrl.target.set(0,3,0);
+
+  // Ambient — very dim, let emissive materials carry the scene
+  scene.add(new THREE.AmbientLight(0x1a1510,.4));
+  // Directional moonlight from upper-left
+  var moon=new THREE.DirectionalLight(0x3a2a10,.4);
+  moon.position.set(-40,60,20);scene.add(moon);
+  // Central gold glow
+  var gold=new THREE.PointLight(0xc8a84e,.8,120);
+  gold.position.set(0,20,0);scene.add(gold);
+
+  ray=new THREE.Raycaster();mouse=new THREE.Vector2();clk=new THREE.Clock();
+
+  makeStars();makePath();
+}
+
+// ── STARS ──
+function makeStars(){
+  var n=isMobile?600:1500,geo=new THREE.BufferGeometry();
+  var pos=new Float32Array(n*3),col=new Float32Array(n*3);
+  for(var i=0;i<n;i++){
+    var r=400+Math.random()*400,th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+    pos[i*3]=r*Math.sin(ph)*Math.cos(th);pos[i*3+1]=r*Math.cos(ph);pos[i*3+2]=r*Math.sin(ph)*Math.sin(th);
+    var b=.2+Math.random()*.6;
+    col[i*3]=b*.8;col[i*3+1]=b*.7;col[i*3+2]=b*.5
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(geo,new THREE.PointsMaterial({size:1,vertexColors:true,transparent:true,opacity:.7,sizeAttenuation:true,depthWrite:false})))
+}
+
+// ── ∞ PATH (ribbon + glow line) ──
+function makePath(){
+  var pts=[];
+  for(var i=0;i<=200;i++){var t=i/200*Math.PI*2,p=infPos(t);pts.push(new THREE.Vector3(p.x,0,p.z))}
+  pathCurve=new THREE.CatmullRomCurve3(pts,true);
+
+  // Dark regolith ribbon
+  var segs=300,w=4,rP=new Float32Array((segs+1)*2*3),rU=new Float32Array((segs+1)*2*2),idx=[];
+  for(var i=0;i<=segs;i++){
+    var u=i/segs,pt=pathCurve.getPoint(u),tg=pathCurve.getTangent(u);
+    var nm=new THREE.Vector3(-tg.z,0,tg.x).normalize();
+    var L=pt.clone().add(nm.clone().multiplyScalar(w)),R=pt.clone().sub(nm.clone().multiplyScalar(w));
+    rP[i*6]=L.x;rP[i*6+1]=-.15;rP[i*6+2]=L.z;
+    rP[i*6+3]=R.x;rP[i*6+4]=-.15;rP[i*6+5]=R.z;
+    rU[i*4]=0;rU[i*4+1]=u;rU[i*4+2]=1;rU[i*4+3]=u
+  }
+  for(var i=0;i<segs;i++){var a=i*2,b=i*2+1,c=(i+1)*2,d=(i+1)*2+1;idx.push(a,b,c,b,d,c)}
+  var rGeo=new THREE.BufferGeometry();
+  rGeo.setAttribute('position',new THREE.BufferAttribute(rP,3));
+  rGeo.setAttribute('uv',new THREE.BufferAttribute(rU,2));rGeo.setIndex(idx);rGeo.computeVertexNormals();
+
+  // Regolith texture
+  var rc=document.createElement('canvas');rc.width=64;rc.height=256;
+  var rx=rc.getContext('2d'),rg=rx.createLinearGradient(0,0,64,0);
+  rg.addColorStop(0,'#080604');rg.addColorStop(.5,'#12100a');rg.addColorStop(1,'#080604');
+  rx.fillStyle=rg;rx.fillRect(0,0,64,256);
+  for(var i=0;i<800;i++){var x=Math.random()*64,y=Math.random()*256,v=Math.random()*12;
+    rx.fillStyle='rgba('+v+','+(v*.7)+','+(v*.3)+',0.2)';rx.fillRect(x,y,1,1)}
+  var rTex=new THREE.CanvasTexture(rc);rTex.wrapS=THREE.RepeatWrapping;rTex.wrapT=THREE.RepeatWrapping;rTex.repeat.set(2,16);
+
+  var ribbon=new THREE.Mesh(rGeo,new THREE.MeshStandardMaterial({map:rTex,color:0x1a1510,roughness:.95,metalness:.05,side:THREE.DoubleSide}));
+  scene.add(ribbon);
+
+  // Glow line (thin gold)
+  var gP=[];for(var i=0;i<=400;i++){var p=pathCurve.getPoint(i/400);gP.push(p.x,.02,p.z)}
+  var gGeo=new THREE.BufferGeometry();gGeo.setAttribute('position',new THREE.Float32BufferAttribute(gP,3));
+  var gLine=new THREE.Line(gGeo,new THREE.LineBasicMaterial({color:0x665520,transparent:true,opacity:.35}));
+  gLine.userData.isPath=true;scene.add(gLine);
+  pathPts=gP;
+}
+// ═══════════════════════════════════════════════
+//  MONUMENTS — 6 installations on the ∞ path
+// ═══════════════════════════════════════════════
+
+function buildMonuments(){
+  MCFG.forEach(function(cfg){
+    var pos=infPos(cfg.t);
+    var mon={id:cfg.id,cfg:cfg,data:DATA[cfg.id-1],
+      group:new THREE.Group(),targets:[],fx:{},growth:0};
+    mon.group.position.set(pos.x,.5,pos.z);
+    mon.group.rotation.y=Math.atan2(pos.x,pos.z);
+    // Build specific shape
+    var fn=[null,buildM1,buildM2,buildM3,buildM4,buildM5,buildM6][cfg.id];
+    if(fn)fn(mon);
+    scene.add(mon.group);monuments.push(mon)
+  });
+  updateGrowth()
+}
+
+// ── MONUMENT 1: ROOM 501 ──
+// Three walls + terminal + lamp — incomplete room floating in void
+function buildM1(m){
+  var g=m.group;
+  var wm=new THREE.MeshStandardMaterial({color:0x080604,roughness:.9,side:THREE.DoubleSide});
+
+  // Back wall
+  var w1=new THREE.Mesh(new THREE.PlaneGeometry(8,5.5),wm);w1.position.set(0,2.75,-4);g.add(w1);
+  // Left wall (full)
+  var w2=new THREE.Mesh(new THREE.PlaneGeometry(7,5.5),wm);w2.position.set(-4,2.75,-.5);w2.rotation.y=Math.PI/2;g.add(w2);
+  // Right wall (partial, symbolizing openness)
+  var w3=new THREE.Mesh(new THREE.PlaneGeometry(3,5.5),wm);w3.position.set(4,2.75,-2.5);w3.rotation.y=-Math.PI/2;g.add(w3);
+  // Low ceiling
+  var ce=new THREE.Mesh(new THREE.PlaneGeometry(8,7),wm);ce.position.set(0,5.5,-1);ce.rotation.x=Math.PI/2;g.add(ce);
+
+  // Terminal monitor (emissive screen)
+  var monG=new THREE.Group();
+  var body=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.8,.25),
+    new THREE.MeshStandardMaterial({color:0x12100a,roughness:.6,metalness:.3}));
+  monG.add(body);
+  var code="document.begin()\nlingxi.write(\"第一行\")\n> _";
+  var scrTex=txtTex(code,{fs:10,col:'#c8a84e',ff:'"Courier New",monospace',al:'left'});
+  var scr=new THREE.Mesh(new THREE.PlaneGeometry(2,1.5),
+    new THREE.MeshBasicMaterial({map:scrTex,transparent:true}));
+  scr.position.z=.13;monG.add(scr);
+  monG.position.set(0,2,-3);
+  m.fx.screen=scr;m.targets.push({mesh:body,mon:m,act:'terminal'});
+  g.add(monG);
+
+  // Keyboard
+  var kb=new THREE.Mesh(new THREE.BoxGeometry(2,.12,.6),
+    new THREE.MeshStandardMaterial({color:0x100d08,roughness:.5}));
+  kb.position.set(0,1.1,-1.5);m.targets.push({mesh:kb,mon:m,act:'keyboard'});g.add(kb);
+
+  // Warm point light from terminal
+  var tL=new THREE.PointLight(0xc8a84e,.4,10);tL.position.set(0,2.5,-2);g.add(tL);
+
+  // Name label (sprite, floating above)
+  var lbl=txtSprite("501房间\nROOM 501\n1988—1989",{fs:16,col:'#c8a84e',s:3});
+  lbl.position.set(0,7.5,0);g.add(lbl);
+
+  // People
+  var ppl=txtSprite("张旋龙 · 求伯君",{fs:14,col:'#8a7430',s:3});
+  ppl.position.set(0,-1.5,5);g.add(ppl);
+
+  // Falling code particles
+  var n=isMobile?25:50,geo=new THREE.BufferGeometry();
+  var fp=new Float32Array(n*3);
+  for(var i=0;i<n;i++){fp[i*3]=(Math.random()-.5)*6;fp[i*3+1]=Math.random()*5;fp[i*3+2]=-3+Math.random()*1.5}
+  geo.setAttribute('position',new THREE.BufferAttribute(fp,3));
+  var pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0xc8a84e,size:.25,transparent:true,opacity:.5,sizeAttenuation:true}));
+  m.fx.fall={pts:pts,pos:fp,n:n,vel:[]};
+  for(var i=0;i<n;i++)m.fx.fall.vel.push(.004+Math.random()*.008);
+  g.add(pts)
+}
+
+// ── MONUMENT 2: 90% ──
+// 10 light pillars, 9 lit, 1 dark
+function buildM2(m){
+  var g=m.group;
+  var words=["五笔","WPS","打印","排版","中文","DOS","文档","编辑","保存"];
+  m.fx.pillars=[];
+
+  for(var i=0;i<10;i++){
+    var pg=new THREE.Group(),h=10+(i===9?-3:0);
+    var mat=new THREE.MeshStandardMaterial({
+      color:i<9?0x2a1a08:0x100d08,
+      emissive:i<9?0x1a1208:0x000000,
+      emissiveIntensity:0,metalness:.6,roughness:.3});
+    var cyl=new THREE.Mesh(new THREE.CylinderGeometry(.35,.4,h,8),mat);
+    cyl.position.y=h/2;pg.add(cyl);
+
+    if(i<9){
+      var lt=new THREE.PointLight(0xc8a84e,0,8);lt.position.y=h;pg.add(lt);
+      m.fx.pillars.push({g:pg,m:cyl,l:lt,lit:false,w:words[i]})
+    }else{
+      var ds=txtSprite("There was always\nanother line to write.",{fs:10,col:'#665520',s:2});
+      ds.position.y=h+2;pg.add(ds);
+      m.fx.pillars.push({g:pg,m:cyl,l:null,lit:false,w:null})
+    }
+    m.targets.push({mesh:cyl,mon:m,act:'pillar',idx:i});
+    pg.position.x=(i-4.5)*2.2;g.add(pg)
+  }
+  var lbl=txtSprite("90%\nNINETY PERCENT\n1989—1993",{fs:16,col:'#c8a84e',s:3});
+  lbl.position.set(0,14,-2);g.add(lbl)
+}
+
+// ── MONUMENT 3: FRACTURE ──
+// Broken code blocks, some falling
+function buildM3(m){
+  var g=m.group;
+  var cw=["error","incompatible","missing","retry","survive","restore"];
+  var el=["盘古 1993","WPS 97 1997","所见即所得","Windows转型","持续生存"];
+  m.fx.frags=[];
+
+  var n=isMobile?18:28;
+  for(var i=0;i<n;i++){
+    var w=1+Math.random()*1.2,h=.8+Math.random()*1.5,d=.8+Math.random()*.8;
+    var tex=txtTex(cw[i%cw.length],{fs:11,col:i%3===0?'#c8a84e':'#8a6a20',ff:'"Courier New",monospace',al:'left'});
+    var bk=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),[
+      new THREE.MeshBasicMaterial({color:0x12100a}),new THREE.MeshBasicMaterial({color:0x12100a}),
+      new THREE.MeshBasicMaterial({map:tex,transparent:true}),new THREE.MeshBasicMaterial({color:0x080604}),
+      new THREE.MeshBasicMaterial({map:tex,transparent:true}),new THREE.MeshBasicMaterial({color:0x0a0804})]);
+    var row=Math.floor(i/6),col=i%6;
+    bk.position.set((col-2.5)*1.5+(Math.random()-.5)*.6,row*1.8+Math.random()*.3,(Math.random()-.5)*.8);
+    // Fracture offset for right-side blocks
+    if(bk.position.x>2){bk.position.x+=Math.random()*1.5;bk.rotation.z=(Math.random()-.5)*.4}
+    if(i>=n-4){bk.position.y=-1-Math.random();bk.rotation.set(Math.random()*.5,Math.random()*.5,Math.random()*.5)}
+    bk.userData.base=bk.position.clone();
+    bk.userData.frag=i;
+    if(i<el.length)bk.userData.eLabel=el[i];
+    m.fx.frags.push(bk);m.targets.push({mesh:bk,mon:m,act:'frag',idx:i});g.add(bk)
+  }
+
+  // Crack light
+  var clP=[];for(var i=0;i<15;i++)clP.push(0,i*.5+.5,0);
+  var clG=new THREE.BufferGeometry();clG.setAttribute('position',new THREE.Float32BufferAttribute(clP,3));
+  var cl=new THREE.Line(clG,new THREE.LineBasicMaterial({color:0xc8a84e,transparent:true,opacity:.4}));
+  m.fx.crack=cl;g.add(cl);
+
+  var cp=new THREE.PointLight(0xc8a84e,.2,12);cp.position.set(0,5,0);g.add(cp);
+
+  var lbl=txtSprite("裂缝\nFRACTURE\n1993—2001",{fs:16,col:'#c8a84e',s:3});
+  lbl.position.set(0,12,0);g.add(lbl)
+}
+
+// ── MONUMENT 4: REWRITE (∞ crossing point) ──
+// Old blocks (left) ↔ New blocks (right), central spire
+function buildM4(m){
+  var g=m.group;
+  var oldW=["asm","dos_int","segment","legacy","compat_old","重写","删除","重建","binary","hex"];
+  var newW=["xml","json","async","cloud","render","writer","sheet","slide","free","轻量"];
+
+  m.fx.old=[];m.fx.newB=[];
+  var n=isMobile?10:16;
+
+  for(var i=0;i<n;i++){
+    var w=1+Math.random()*.4,h=.6+Math.random()*.5;
+    var tex=txtTex(oldW[i%oldW.length],{fs:10,col:'#8a6a20',ff:'"Courier New",monospace',al:'left'});
+    var bk=new THREE.Mesh(new THREE.BoxGeometry(w,h,.6),
+      new THREE.MeshStandardMaterial({map:tex,transparent:true,color:0x12100a,roughness:.7}));
+    bk.position.set(-2.5-Math.random()*1.5,i*.75-2,(Math.random()-.5)*.8);
+    bk.userData.base=bk.position.clone();m.fx.old.push(bk);g.add(bk)
+  }
+  for(var i=0;i<n;i++){
+    var w=.8+Math.random()*.3,h=.5+Math.random()*.4;
+    var tex=txtTex(newW[i%newW.length],{fs:10,col:'#c8a84e',ff:'"Courier New",monospace',al:'left'});
+    var bk=new THREE.Mesh(new THREE.BoxGeometry(w,h,.5),
+      new THREE.MeshStandardMaterial({map:tex,transparent:true,color:0x1a1510,roughness:.6}));
+    bk.position.set(2.5+Math.random()*1.2,i*.7-2,(Math.random()-.5)*.6);
+    bk.userData.base=bk.position.clone();m.fx.newB.push(bk);g.add(bk)
+  }
+
+  // Central spire
+  var spire=new THREE.Mesh(new THREE.ConeGeometry(.4,7,4),
+    new THREE.MeshStandardMaterial({color:0x3a2a10,emissive:0x2a1a08,emissiveIntensity:.5,metalness:.7,roughness:.3}));
+  spire.position.y=3.5;g.add(spire);m.fx.spire=spire;
+
+  // Crossing ring
+  var ring=new THREE.Mesh(new THREE.RingGeometry(3,3.3,32),
+    new THREE.MeshBasicMaterial({color:0xc8a84e,transparent:true,opacity:.1,side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2;ring.position.y=.1;g.add(ring);
+
+  var cl=new THREE.PointLight(0xc8a84e,.6,20);cl.position.set(0,4,0);g.add(cl);
+
+  var lbl=txtSprite("重写\nREWRITE\n2002—2005\nCROSSING POINT",{fs:18,col:'#c8a84e',s:3.5});
+  lbl.position.set(0,10,0);g.add(lbl);
+  var ppl=txtSprite("雷军 · 重写工程团队",{fs:16,col:'#8a7430',s:4});
+  ppl.position.set(0,-1.5,4.5);g.add(ppl)
+}
+
+// ── MONUMENT 5: BILLION SCREENS ──
+// Particle cloud + golden gong
+function buildM5(m){
+  var g=m.group;
+  var n=isMobile?400:1000;
+  var pos=new Float32Array(n*3),col=new Float32Array(n*3);
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2,r=1.5+Math.random()*7,h=Math.random()*12;
+    pos[i*3]=Math.cos(a)*r;pos[i*3+1]=h;pos[i*3+2]=Math.sin(a)*r;
+    var b=.3+Math.random()*.5;
+    col[i*3]=b*.8;col[i*3+1]=b*.65;col[i*3+2]=b*.25
+  }
+  var geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  var pts=new THREE.Points(geo,new THREE.PointsMaterial({size:.2,vertexColors:true,transparent:true,opacity:.7,sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  m.fx.parts={pts:pts,pos:pos,n:n,base:pos.slice()};
+  g.add(pts);
+
+  // Gong
+  var gong=new THREE.Mesh(new THREE.TorusGeometry(1.6,.12,16,48),
+    new THREE.MeshStandardMaterial({color:0xc8a84e,metalness:.9,roughness:.2,emissive:0x3a2a10,emissiveIntensity:.3}));
+  gong.position.set(0,9,0);gong.rotation.x=Math.PI/2;
+  gong.userData.isGong=true;m.targets.push({mesh:gong,mon:m,act:'gong'});g.add(gong);
+  m.fx.gong=gong;
+
+  // Gong center disc
+  var disc=new THREE.Mesh(new THREE.CircleGeometry(1.4,48),
+    new THREE.MeshStandardMaterial({color:0x8a6a20,metalness:.7,roughness:.3,transparent:true,opacity:.6}));
+  disc.position.set(0,9,.01);disc.rotation.x=Math.PI/2;g.add(disc);
+
+  // Support
+  var sup=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,5,6),
+    new THREE.MeshStandardMaterial({color:0x3a2a10,metalness:.4}));
+  sup.position.set(0,6.5,0);g.add(sup);
+
+  var gl=new THREE.PointLight(0x8a6a20,.5,25);gl.position.set(0,8,0);g.add(gl);
+
+  var lbl=txtSprite("亿万块屏幕\nBILLION SCREENS\n2011—2022",{fs:16,col:'#c8a84e',s:3});
+  lbl.position.set(0,14,0);g.add(lbl)
+}
+
+// ── MONUMENT 6: NEXT LINE ──
+// Flowing particles + core + AI task objects
+function buildM6(m){
+  var g=m.group;
+  var n=isMobile?150:400;
+  var pos=new Float32Array(n*3),col=new Float32Array(n*3);
+  for(var i=0;i<n;i++){
+    var a=(i/n)*Math.PI*4,r=1.2+Math.sin(a*.5)*.4,h=(i/n)*11;
+    pos[i*3]=Math.cos(a)*r;pos[i*3+1]=h;pos[i*3+2]=Math.sin(a)*r;
+    var b=.4+Math.random()*.5;
+    col[i*3]=b*.85;col[i*3+1]=b*.72;col[i*3+2]=b*.25
+  }
+  var geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  var pts=new THREE.Points(geo,new THREE.PointsMaterial({size:.18,vertexColors:true,transparent:true,opacity:.8,sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  m.fx.fluid={pts:pts,pos:pos,n:n,base:pos.slice()};g.add(pts);
+
+  // Core column
+  var core=new THREE.Mesh(new THREE.CylinderGeometry(.25,.6,12,8),
+    new THREE.MeshStandardMaterial({color:0x3a2a10,emissive:0x2a1a05,emissiveIntensity:.4,metalness:.6,roughness:.3,transparent:true,opacity:.5}));
+  core.position.y=6;g.add(core);m.fx.core=core;
+  m.targets.push({mesh:core,mon:m,act:'detail'});
+
+  // AI task objects (orbiting octahedra)
+  var labels=["DOC","SHEET","SLIDE","PDF"];
+  m.fx.tasks=[];
+  for(var i=0;i<4;i++){
+    var a=(i/4)*Math.PI*2;
+    var obj=new THREE.Mesh(new THREE.OctahedronGeometry(.5),
+      new THREE.MeshStandardMaterial({color:0x3a2a10,emissive:0x1a1510,emissiveIntensity:.3,metalness:.5,roughness:.3}));
+    obj.position.set(Math.cos(a)*2.5,2,Math.sin(a)*2.5);
+    m.targets.push({mesh:obj,mon:m,act:'task',idx:i});
+    m.fx.tasks.push(obj);g.add(obj);
+
+    var tl=txtSprite(labels[i],{fs:13,col:'#c8a84e',s:1.8});
+    tl.position.set(Math.cos(a)*3.5,3.2,Math.sin(a)*3.5);g.add(tl)
+  }
+
+  var gl=new THREE.PointLight(0xc8a84e,.6,22);gl.position.set(0,6,0);g.add(gl);
+
+  // Quote
+  var qt=txtSprite('"超过5000万行代码，\n都是工程师一行行敲出来的。"\n— 金山办公',{fs:12,col:'#8a7430',s:2.8});
+  // 引言不随group旋转——放scene中，沿纪念碑外侧方向，y抬高避开路径
+  var qDir=new THREE.Vector3(m.group.position.x,0,m.group.position.z).normalize();
+  qt.position.set(m.group.position.x+qDir.x*4,m.group.position.y+3.5,m.group.position.z+qDir.z*4);
+  scene.add(qt);m.fx.quoteSpr=qt;
+
+  var lbl=txtSprite("下一行\nNEXT LINE\n2023—2029 →",{fs:18,col:'#c8a84e',s:3.5});
+  lbl.position.set(0,14,0);g.add(lbl)
+}
+// ═══════════════════════════════════════════════
+//  INTERACTION SYSTEM
+// ═══════════════════════════════════════════════
+
+function initInput(){
+  var cv=document.getElementById('c');
+  cv.addEventListener('click',onRayClick);
+
+  // Timeline drag
+  var track=document.getElementById('tl-track'),dragging=false;
+  track.addEventListener('pointerdown',function(e){dragging=true;yearFromPointer(e)});
+  document.addEventListener('pointermove',function(e){if(dragging)yearFromPointer(e)});
+  document.addEventListener('pointerup',function(){dragging=false});
+  // Buttons
+  document.getElementById('btnTour').addEventListener('click',toggleTour);
+  document.getElementById('dpClose').addEventListener('click',closeDetail);
+  // Keyboard shortcuts
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();toast('月面已保存')}
+  })
+}
+
+// ── CAMERA FLY ──
+var flying=false,flyAnim=null;
+function flyToMonument(m){
+  if(flyAnim)cancelAnimationFrame(flyAnim);flyAnim=null;flying=true;
+  ctrl.enabled=false;
+  document.body.classList.add('flying');
+  // 纪念碑世界中心
+  var box=new THREE.Box3().setFromObject(m.group);
+  var center=box.getCenter(new THREE.Vector3());
+  // 计算从纪念碑到当前相机方向的水平角
+  var camDir=new THREE.Vector3().subVectors(cam.position,center).normalize();
+  camDir.y=0;camDir.normalize();
+  // 目标位置：纪念碑前方偏上，固定距离保证好看
+  var size=box.getSize(new THREE.Vector3());
+  var dist=Math.max(Math.max(size.x,size.z)*(isMobile?1.2:1.5),isMobile?6:8);
+  var targetPos=new THREE.Vector3(
+    center.x+camDir.x*dist,
+    center.y+size.y*.3,
+    center.z+camDir.z*dist
+  );
+  var targetLookAt=center.clone();
+  var startCamPos=cam.position.clone();
+  var startTarget=ctrl.target.clone();
+  var t0=performance.now(),dur=1200;
+  function tick(now){
+    var t=Math.min((now-t0)/dur,1);
+    // easeInOutQuart
+    var e=t<.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2;
+    cam.position.lerpVectors(startCamPos,targetPos,e);
+    ctrl.target.lerpVectors(startTarget,targetLookAt,e);
+    cam.lookAt(ctrl.target);
+    if(t<1){flyAnim=requestAnimationFrame(tick)}
+    else{flying=false;flyAnim=null;ctrl.enabled=true;document.body.classList.remove('flying');ctrl.update()}
+  }
+  flyAnim=requestAnimationFrame(tick)
+}
+
+function onRayClick(e){
+  if(tourOn)return;
+  mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(mouse,cam);
+  // 对每个纪念碑group做intersect，覆盖label sprite等更大体积
+  var groups=[];monuments.forEach(function(m){groups.push(m.group)});
+  var hits=ray.intersectObjects(groups,true);
+  if(hits.length>0){
+    // 从命中的object向上追溯到monument group
+    var obj=hits[0].object;
+    while(obj&&obj.parent){
+      for(var i=0;i<monuments.length;i++){
+        if(obj===monuments[i].group){
+          visited.add(monuments[i].id);currentViewedMonument=monuments[i];flyToMonument(monuments[i]);openDetail(monuments[i]);
+          if(monuments[i].data.id===6)doGong(monuments[i]);
+          return
+        }
+      }
+      obj=obj.parent;
+    }
+  }
+}
+
+// ── GONG EVENT ──
+var gongFired=false;
+function doGong(m){
+  if(gongFired)return;gongFired=true;
+  hint('688111 — 2019年11月18日 — 金山办公上市');
+  // Path pulse
+  var t0=clk.getElapsedTime();
+  function tick(){
+    var t=clk.getElapsedTime()-t0;
+    if(t<3){
+      monuments.forEach(function(mon){mon.group.position.y=Math.sin(t*3)*.2});
+      requestAnimationFrame(tick)
+    }else{
+      monuments.forEach(function(mon){mon.group.position.y=.5})
+    }
+  }
+  tick();
+  // 688111 sky text
+  var sp=txtSprite("688111\n2019.11.18",{fs:20,col:'#c8a84e',s:12});
+  sp.position.set(0,45,-25);scene.add(sp);
+  setTimeout(function(){scene.remove(sp);sp.material.map.dispose();sp.material.dispose()},5000);
+  setTimeout(function(){gongFired=false},8000)
+}
+
+// ═══════════════════════════════════════════════
+//  DETAIL PANEL
+// ═══════════════════════════════════════════════
+function openDetail(m){
+  var d=m.data,h='<div class="dp-idx">MONUMENT '+d.id+' / 6</div>'+
+    '<div class="dp-name">'+d.name+'</div><div class="dp-en">'+d.en+'</div>'+
+    '<div class="dp-meta"><span>'+d.range+'</span><span>'+d.verb+' / '+d.verbEn+'</span><span>'+d.product+'</span></div>'+
+    '<div class="dp-section"><h4>描述</h4><p>'+d.desc+'</p></div>'+
+    '<div class="dp-section"><h4>人物</h4>';
+  d.people.forEach(function(p){h+='<p class="person">'+p+'</p>'});
+  h+='</div><div class="dp-section"><h4>大事年表</h4>';
+  d.events.forEach(function(e){
+    h+='<p><strong>'+e.y+'</strong> '+e.t+'<br>'+e.d+'</p>'+
+      '<div class="dp-verify '+(e.v==='verified'?'verified':'artistic')+'">['+e.v+']</div>'+
+      (e.s&&e.s!=='—'?'<div class="dp-source">来源: '+e.s+'</div>':'')
+  });
+  h+='</div>';
+  if(d.quote){
+    h+='<div class="dp-section"><h4>铭文</h4><p style="color:#c8a84e;font-style:italic">"'+d.quote.t+'"</p>'+
+      '<div class="dp-verify verified">'+d.quote.p+' · '+d.quote.s+'</div></div>'
+  }
+  h+='<div class="dp-section"><h4>来源</h4>';
+  d.src.forEach(function(s){h+='<div class="dp-source">'+s+'</div>'});
+  h+='</div><div class="dp-art">'+d.art+'</div>';
+  document.getElementById('dpBody').innerHTML=h;
+  document.getElementById('detail').classList.add('open')
+}
+
+// 默认全局视角
+var DEFAULT_CAM={pos:{x:0,y:28,z:65},target:{x:0,y:0,z:0}};
+var currentViewedMonument=null;
+
+function flyHome(){
+  if(flyAnim)cancelAnimationFrame(flyAnim);flyAnim=null;flying=true;
+  ctrl.enabled=false;
+  var startCamPos=cam.position.clone();
+  var startTarget=ctrl.target.clone();
+  var t0=performance.now(),dur=1400;
+  function tick(now){
+    var t=Math.min((now-t0)/dur,1);
+    var e=t<.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2;
+    cam.position.set(
+      startCamPos.x+(DEFAULT_CAM.pos.x-startCamPos.x)*e,
+      startCamPos.y+(DEFAULT_CAM.pos.y-startCamPos.y)*e,
+      startCamPos.z+(DEFAULT_CAM.pos.z-startCamPos.z)*e
+    );
+    ctrl.target.set(
+      startTarget.x+(DEFAULT_CAM.target.x-startTarget.x)*e,
+      startTarget.y+(DEFAULT_CAM.target.y-startTarget.y)*e,
+      startTarget.z+(DEFAULT_CAM.target.z-startTarget.z)*e
+    );
+    cam.lookAt(ctrl.target);
+    if(t<1){flyAnim=requestAnimationFrame(tick)}
+    else{flying=false;flyAnim=null;ctrl.enabled=true;currentViewedMonument=null;ctrl.update()}
+  }
+  flyAnim=requestAnimationFrame(tick)
+}
+
+function closeDetail(){
+  document.getElementById('detail').classList.remove('open');
+  if(currentViewedMonument)flyHome()
+}
+
+// ═══════════════════════════════════════════════
+//  TOUR MODE
+// ═══════════════════════════════════════════════
+var tourSteps=[],tourStepIdx=0,tourStepT=0;
+
+function buildTourSteps(){
+  tourSteps=[];
+  var overviewY=isMobile?20:28,overviewZ=isMobile?42:65;
+  // 先飞到全局俯瞰位
+  tourSteps.push({
+    from:{pos:{x:0,y:overviewY,z:overviewZ},target:{x:0,y:0,z:0}},
+    to:{pos:{x:0,y:overviewY,z:overviewZ},target:{x:0,y:0,z:0}},
+    dur:1.5,hint:'THE FIRST LINE — A LUNAR ARCHIVE OF WPS',stay:1
+  });
+  // 逐个纪念碑正面观看（从纪念碑外侧面向正面方向）
+  monuments.forEach(function(m){
+    var box=new THREE.Box3().setFromObject(m.group);
+    var center=box.getCenter(new THREE.Vector3());
+    var size=box.getSize(new THREE.Vector3());
+    var dist=Math.max(Math.max(size.x,size.z)*(isMobile?0.9:1.2),isMobile?6:8);
+    // 纪念碑正面朝向原点，相机从外侧向内看
+    var px=m.group.position.x,pz=m.group.position.z;
+    var len=Math.sqrt(px*px+pz*pz);
+    var outDir;
+    if(len<3){
+      // 纪念碑在原点附近，从正上方俯瞰避免被近处立柱群遮挡
+      if(m.id===4){
+        // M4 重写纪念碑：俯瞰视角，从上方偏南看
+        outDir=new THREE.Vector3(0,0,-1);
+        dist=isMobile?12:18;
+        var tgtPos=new THREE.Vector3(
+          m.group.position.x+outDir.x*dist,
+          20,
+          m.group.position.z+outDir.z*dist
+        );
+        var lookY=m.group.position.y+size.y*.3;
+        tourSteps.push({
+          from:null,
+          to:{pos:{x:tgtPos.x,y:tgtPos.y,z:tgtPos.z},target:{x:m.group.position.x,y:lookY,z:m.group.position.z}},
+          dur:1.8,hint:m.data.name+' — '+m.data.en+' ('+m.data.range+')',stay:3
+        });
+        return
+      }
+      var pathT=m.cfg.t/(Math.PI*2);
+      pathT=((pathT%1)+1)%1;
+      var tangent=pathCurve.getTangent(pathT);
+      var normal=new THREE.Vector3(-tangent.z,0,tangent.x).normalize();
+      outDir=normal
+    }else{
+      outDir=new THREE.Vector3(px/len,0,pz/len)
+    }
+    // lookAt用纪念碑group position作为基准，高度略高于地面
+    var lookY=m.group.position.y+size.y*.4;
+    var tgtPos=new THREE.Vector3(
+      m.group.position.x+outDir.x*dist,
+      lookY+2,
+      m.group.position.z+outDir.z*dist
+    );
+    tourSteps.push({
+      from:null,
+      to:{pos:{x:tgtPos.x,y:tgtPos.y,z:tgtPos.z},target:{x:m.group.position.x,y:lookY,z:m.group.position.z}},
+      dur:1.8,hint:m.data.name+' — '+m.data.en+' ('+m.data.range+')',stay:3
+    });
+  });
+  // 最后回到全局视角
+  tourSteps.push({
+    from:null,
+    to:{pos:{x:0,y:overviewY,z:overviewZ},target:{x:0,y:0,z:0}},
+    dur:2,hint:'导览结束',stay:0
+  });
+}
+
+function toggleTour(){
+  if(tourOn){endTour();return}
+  tourOn=true;ctrl.enabled=false;
+  // 回到1988，一切从零开始
+  setYear(1988);
+  buildTourSteps();tourStepIdx=0;tourStepT=0;
+  // 设置第一步的from为当前位置
+  tourSteps[0].from={pos:{x:cam.position.x,y:cam.position.y,z:cam.position.z},
+    target:{x:ctrl.target.x,y:ctrl.target.y,z:ctrl.target.z}};
+  toast('策展人导览开始');
+  hint(tourSteps[0].hint)
+}
+
+function endTour(){
+  tourOn=false;ctrl.enabled=true;hideTourCard();
+  // 恢复完整展览
+  setYear(2026);
+  // 确保回到全局视角
+  cam.position.set(0,overviewY,overviewZ);ctrl.target.set(0,0,0);ctrl.update();
+  toast('导览结束 — 自由漫游已启用')
+}
+
+function updateTour(dt){
+  if(!tourOn||tourSteps.length===0)return;
+  var step=tourSteps[tourStepIdx];
+  if(!step)return;
+  if(tourStepT===0){
+    // 新步骤开始飞行，先隐藏card
+    hideTourCard();
+    // 动态起点 = 当前相机位置
+    step.from={pos:{x:cam.position.x,y:cam.position.y,z:cam.position.z},
+      target:{x:ctrl.target.x,y:ctrl.target.y,z:ctrl.target.z}}
+  }
+  var totalDur=step.dur+step.stay;
+  tourStepT+=dt;
+  if(tourStepT>=totalDur){
+    // 完成当前步骤，跳到下一步
+    cam.position.set(step.to.pos.x,step.to.pos.y,step.to.pos.z);
+    ctrl.target.set(step.to.target.x,step.to.target.y,step.to.target.z);
+    cam.lookAt(ctrl.target);
+    tourStepIdx++;
+    if(tourStepIdx>=tourSteps.length){endTour();return}
+    tourSteps[tourStepIdx].from={pos:{x:step.to.pos.x,y:step.to.pos.y,z:step.to.pos.z},
+      target:{x:step.to.target.x,y:step.to.target.y,z:step.to.target.z}};
+    tourStepT=0;
+    hint(tourSteps[tourStepIdx].hint);
+    // 标记已访问
+    if(tourStepIdx>0&&tourStepIdx<=monuments.length){
+      visited.add(monuments[tourStepIdx-1].id)
+    }
+    // 推进年份到当前碑的结束年，让碑完全展开
+    var nextMonIdx=tourStepIdx-1;
+    if(nextMonIdx>=0&&nextMonIdx<monuments.length){
+      setYear(monuments[nextMonIdx].cfg.ye)
+    }
+    return
+  }
+  if(tourStepT>step.dur&&tourStepT-step.dur<.05){
+    // 刚进入停留阶段，显示tour card
+    var monIdx=tourStepIdx-1;
+    if(monIdx>=0&&monIdx<monuments.length){
+      showTourCard(monuments[monIdx].data)
+    }
+  }
+  if(tourStepT<=step.dur){
+    // 飞行阶段
+    var t=Math.min(tourStepT/step.dur,1);
+    var e=t<.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2;
+    var fp=step.from.pos,tp=step.to.pos,ft=step.from.target,tt=step.to.target;
+    cam.position.set(fp.x+(tp.x-fp.x)*e,fp.y+(tp.y-fp.y)*e,fp.z+(tp.z-fp.z)*e);
+    ctrl.target.set(ft.x+(tt.x-ft.x)*e,ft.y+(tt.y-ft.y)*e,ft.z+(tt.z-ft.z)*e);
+    cam.lookAt(ctrl.target)
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  TIMELINE
+// ═══════════════════════════════════════════════
+function initTimeline(){
+  var ticks=document.getElementById('tl-years');
+  var keyYears=[1988,1989,1993,2002,2011,2023];
+  keyYears.forEach(function(y){
+    ticks.innerHTML+='<span'+(y>=2027?' style="color:#222"':'')+'>'+y+'</span>'
+  })
+}
+
+function yearFromPointer(e){
+  var r=document.getElementById('tl-track').getBoundingClientRect();
+  var x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  setYear(Math.round(1988+x*41))
+}
+
+function setYear(y){
+  y=Math.max(1988,Math.min(2029,y));curYear=y;
+  var disp=document.getElementById('yearDisp');
+  if(y>=2027){disp.textContent='...';disp.style.color='#444'}
+  else{disp.textContent=y;disp.style.color='#c8a84e'}
+  var pct=((y-1988)/41)*100;
+  document.getElementById('tl-fill').style.width=pct+'%';
+  document.getElementById('tl-dot').style.left=pct+'%';
+  // Highlight nearest past key year
+  var spans=document.getElementById('tl-years').children;
+  var ky=[1988,1989,1993,2002,2011,2023];
+  var active=ky[0];for(var i=0;i<ky.length;i++){if(y>=ky[i])active=ky[i]}
+  for(var i=0;i<spans.length;i++){
+    spans[i].classList.toggle('active',parseInt(spans[i].textContent)===active)
+  }
+  updateGrowth();updateCommitLog()
+}
+
+function updateGrowth(){
+  monuments.forEach(function(m){
+    var ys=m.cfg.ys,ye=m.cfg.ye,g=0;
+    if(curYear<ys)g=0;else if(curYear>=ye)g=1;else g=(curYear-ys)/(ye-ys);
+    m.growth=g;
+    if(g>=.99){m.group.scale.set(1,1,1);m.group.visible=true}
+    else if(g<=.01){m.group.scale.set(.01,.01,.01);m.group.visible=true}
+    else{var e=g*g;m.group.scale.set(.3+e*.7,e,.3+e*.7);m.group.visible=true}
+  })
+}
+
+function updateCommitLog(){
+  var el=document.getElementById('clList'),h='';
+  for(var i=COMMITS.length-1;i>=0;i--){
+    var c=COMMITS[i];if(c.y<=curYear){
+      h+='<div class="cl-e"><span class="h">'+c.h+'</span> '+c.m+'</div>'
+    }
+  }
+  el.innerHTML=h
+}
+
+// ═══════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════
+function animate(){
+  requestAnimationFrame(animate);
+  var dt=clk.getDelta(),t=clk.getElapsedTime();
+
+  if(flying){/* fly animation handles its own ctrl.update */}
+  else if(!tourOn)ctrl.update();else updateTour(dt);
+
+  // Monument 1: falling code
+  var m1=monuments[0];
+  if(m1&&m1.fx.fall){
+    var fd=m1.fx.fall;
+    for(var i=0;i<fd.n;i++){
+      fd.pos[i*3+1]-=fd.vel[i];
+      if(fd.pos[i*3+1]<-.5){fd.pos[i*3+1]=5;fd.pos[i*3]=(Math.random()-.5)*6}
+    }
+    fd.pts.geometry.attributes.position.needsUpdate=true
+  }
+
+  // Monument 2: pillar glow pulse
+  var m2=monuments[1];
+  if(m2&&m2.fx.pillars){
+    m2.fx.pillars.forEach(function(p){if(p.lit&&p.l)p.l.intensity=.8+Math.sin(t*2)*.3})
+  }
+
+  // Monument 3: fragment drift + crack pulse
+  var m3=monuments[2];
+  if(m3&&m3.fx.frags){
+    m3.fx.frags.forEach(function(f){
+      var d=cam.position.distanceTo(m3.group.position);
+      if(d<18)f.position.x=f.userData.base.x+Math.sin(t*.3+f.userData.frag)*.06
+    });
+    if(m3.fx.crack)m3.fx.crack.material.opacity=.3+Math.sin(t*.7)*.15
+  }
+
+  // Monument 4: DIFF oscillation + spire rotation
+  var m4=monuments[3];
+  if(m4&&m4.fx.old){
+    var diff=.5+Math.sin(t*.12)*.3;
+    m4.fx.old.forEach(function(b){var bp=b.userData.base;b.position.x=bp.x*(.7+diff*.5)});
+    m4.fx.newB.forEach(function(b){var bp=b.userData.base;b.position.x=bp.x*(.4+diff*.6)})
+  }
+  if(m4&&m4.fx.spire)m4.fx.spire.rotation.y=t*.08;
+
+  // Monument 5: particle rotation
+  var m5=monuments[4];
+  if(m5&&m5.fx.parts){
+    var pd=m5.fx.parts;
+    for(var i=0;i<pd.n;i++){
+      var a=t*.04+i*.003;
+      pd.pos[i*3]=pd.base[i*3]*Math.cos(a)-pd.base[i*3+2]*Math.sin(a);
+      pd.pos[i*3+2]=pd.base[i*3]*Math.sin(a)+pd.base[i*3+2]*Math.cos(a)
+    }
+    pd.pts.geometry.attributes.position.needsUpdate=true
+  }
+
+  // Monument 6: fluid wave + task orbit
+  var m6=monuments[5];
+  if(m6&&m6.fx.fluid){
+    var fd=m6.fx.fluid;
+    for(var i=0;i<fd.n;i++){
+      fd.pos[i*3]=fd.base[i*3]+Math.sin(t*.25+i*.08)*.25;
+      fd.pos[i*3+2]=fd.base[i*3+2]+Math.cos(t*.25+i*.08)*.25
+    }
+    fd.pts.geometry.attributes.position.needsUpdate=true
+  }
+  if(m6&&m6.fx.tasks){
+    m6.fx.tasks.forEach(function(o,idx){
+      var a=t*.25+(idx/4)*Math.PI*2;
+      o.position.x=Math.cos(a)*2.5;o.position.z=Math.sin(a)*2.5;
+      o.rotation.y=t*.4;o.rotation.x=Math.sin(t*.6+idx)*.25
+    })
+  }
+
+  // Gong gentle sway
+  if(monuments[4]&&monuments[4].fx.gong){
+    monuments[4].fx.gong.rotation.z=Math.sin(t*.25)*.015
+  }
+
+  // Subtle camera breathing when idle (not in tour, not dragging)
+  if(!tourOn&&!ctrl.enabled){
+    // handled by OrbitControls damping
+  }
+
+  // Engineer layer scroll
+  engTimer+=dt;
+  if(engTimer>1.2){
+    engTimer=0;engIdx=(engIdx+1)%ENGINEERS.length
+  }
+
+  renderer.render(scene,cam)
+}
+
+// ═══════════════════════════════════════════════
+//  TOAST & HINT
+// ═══════════════════════════════════════════════
+function toast(msg){
+  var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastTmr);toastTmr=setTimeout(function(){el.classList.remove('show')},2500)
+}
+function hint(msg){
+  var el=document.getElementById('hint');el.textContent=msg;el.classList.add('show');
+  clearTimeout(hintTmr);hintTmr=setTimeout(function(){el.classList.remove('show')},3000)
+}
+var tourCardTmr=null;
+function showTourCard(data){
+  var nameEl=document.getElementById('tcName'),storyEl=document.getElementById('tcStory'),sepEl=document.getElementById('tcSep'),card=document.getElementById('tourCard');
+  nameEl.textContent=data.name+'  '+data.en+'  '+data.range;
+  // 取desc的第一句话作为故事摘要
+  var first=data.desc.indexOf('。');
+  storyEl.textContent=data.desc.substring(0,first>0?first+1:data.desc.length);
+  sepEl.style.display='block';
+  card.classList.add('show');
+  clearTimeout(tourCardTmr)
+}
+function hideTourCard(){
+  document.getElementById('tourCard').classList.remove('show')
+}
+
+// ═══════════════════════════════════════════════
+//  WINDOW RESIZE
+// ═══════════════════════════════════════════════
+window.addEventListener('resize',function(){
+  cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight)
+});
+
+// ═══════════════════════════════════════════════
+//  LOADING SEQUENCE
+// ═══════════════════════════════════════════════
+function loadSequence(){
+  var steps=[
+    [15,'INITIALIZING TRANQUILLITY BASE T-01'],
+    [30,'LOADING LUNAR SURFACE DATA'],
+    [50,'CONSTRUCTING MONUMENT 1: ROOM 501'],
+    [62,'CONSTRUCTING MONUMENT 2: 90%'],
+    [74,'CONSTRUCTING MONUMENT 3: FRACTURE'],
+    [84,'CONSTRUCTING MONUMENT 4: REWRITE'],
+    [92,'CONSTRUCTING MONUMENT 5: BILLION SCREENS'],
+    [97,'CONSTRUCTING MONUMENT 6: NEXT LINE'],
+    [100,'READY — TRANQUILLITY BASE T-01 ONLINE']
+  ];
+  var i=0;
+  function next(){
+    if(i>=steps.length){setTimeout(finishLoad,600);return}
+    document.getElementById('ldPct').textContent=steps[i][0]+'%';
+    document.getElementById('ldSub').textContent=steps[i][1];i++;
+    setTimeout(next,180+Math.random()*180)
+  }
+  next()
+}
+
+function finishLoad(){
+  document.getElementById('loader').classList.add('done');
+  setTimeout(function(){
+    document.getElementById('loader').style.display='none';
+    document.getElementById('timeline').classList.add('show');
+    document.getElementById('commitlog').classList.add('show');
+    document.getElementById('ctrls').classList.add('show');
+    toast('1988，一个人写下第一行。2029，我们把它刻进月球。')
+  },2000)
+}
+
+// ═══════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════
+function boot(){
+  if(typeof THREE==='undefined'){
+    document.getElementById('ldSub').textContent='three.min.js 加载失败';
+    document.getElementById('ldPct').textContent='ERROR';return
+  }
+  try{
+    initScene();buildMonuments();initTimeline();setYear(2026);
+    initInput();
+    updateCommitLog();
+    animate();loadSequence()
+  }catch(e){
+    document.getElementById('ldSub').textContent='初始化失败: '+e.message;
+    console.error(e)
+  }
+}
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+else boot();
+</script>
+</body>
+</html>
