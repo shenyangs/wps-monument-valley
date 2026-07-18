@@ -428,7 +428,7 @@ function initScene(){
   cam.position.set(0,isMobile?20:28,isMobile?42:65);
 
   var cv=document.getElementById('c');
-  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:!isMobile,powerPreference:'high-performance'});
+  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:!isMobile});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setSize(innerWidth,innerHeight);
   renderer.outputEncoding=THREE.sRGBEncoding;
@@ -1339,12 +1339,18 @@ function boot(){
     document.getElementById('ldPct').textContent='ERROR';return
   }
   try{
+    // Test WebGL context first
+    var tc=document.createElement('canvas');
+    var gl=tc.getContext('webgl')||tc.getContext('experimental-webgl');
+    if(!gl){document.getElementById('ldSub').textContent='WebGL 不可用';
+      document.getElementById('ldPct').textContent='ERROR';return}
     initScene();buildMonuments();initTimeline();setYear(2026);
     initInput();
     updateCommitLog();
     animate();loadSequence()
   }catch(e){
     document.getElementById('ldSub').textContent='初始化失败: '+e.message;
+    document.getElementById('ldPct').textContent='ERROR';
     console.error(e)
   }
 }
